@@ -43,6 +43,7 @@ import org.onebusaway.android.map.DirectionsMapController;
 import org.onebusaway.android.map.MapModeController;
 import org.onebusaway.android.map.MapParams;
 import org.onebusaway.android.map.RouteMapController;
+import org.onebusaway.android.map.RoutesMapController;
 import org.onebusaway.android.map.StopMapController;
 import org.onebusaway.android.region.ObaRegionsTask;
 import org.onebusaway.android.util.LocationHelper;
@@ -436,7 +437,9 @@ public class BaseMapFragment extends SupportMapFragment
             mStopOverlay.clear(false);
         }
         if (MapParams.MODE_ROUTE.equals(mode)) {
-            mController = new RouteMapController(this);
+            mController = new RoutesMapController(this);
+        /*} else if (MapParams.MODE_STOP.equals(mode)) {
+            mController = new RouteMapController(this);*/
         } else if (MapParams.MODE_STOP.equals(mode)) {
             mController = new StopMapController(this);
         } else if (MapParams.MODE_DIRECTIONS.equals(mode)) {
