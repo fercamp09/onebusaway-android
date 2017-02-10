@@ -434,7 +434,7 @@ public class RouteMapController implements MapModeController {
             }
 
             ObaRoute route = response.getRoute(response.getRouteId());
-
+            //Log.i("AgencyID",route.getAgencyId());
             mRoutePopup.show(route, response.getAgency(route.getAgencyId()).getName());
 
             if (route.getColor() != null) {

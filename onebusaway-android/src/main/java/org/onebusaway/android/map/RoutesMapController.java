@@ -36,8 +36,8 @@ import org.onebusaway.android.io.ObaApi;
 import org.onebusaway.android.io.elements.ObaRoute;
 import org.onebusaway.android.io.elements.ObaStop;
 import org.onebusaway.android.io.request.ObaRouteIdsForAgencyRequest;
-import org.onebusaway.android.io.request.ObaRoutesForLocationRequest;
-import org.onebusaway.android.io.request.ObaRoutesForLocationResponse;
+import org.onebusaway.android.io.request.ObaRouteIdsForAgencyRequest;
+import org.onebusaway.android.io.request.ObaRouteIdsForAgencyResponse;
 import org.onebusaway.android.io.request.ObaStopsForRouteRequest;
 import org.onebusaway.android.io.request.ObaStopsForRouteResponse;
 import org.onebusaway.android.io.request.ObaTripsForRouteRequest;
@@ -46,6 +46,8 @@ import org.onebusaway.android.map.googlemapsv2.BaseMapFragment;
 import org.onebusaway.android.util.LocationUtils;
 import org.onebusaway.android.util.UIUtils;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -55,7 +57,7 @@ public class RoutesMapController implements MapModeController {
     private static final String TAG = "RoutesMapController";
 
     private static final int ROUTES_LOADER = 5677;
-    private static final int VEHICLES_LOADER = 5678;
+    private static final int VEHICLES_LOADER = 5700;
     private static final int ROUTE_LOADER = 5679;
 
     private final Callback mFragment;
@@ -79,7 +81,7 @@ public class RoutesMapController implements MapModeController {
     // In lieu of using an actual LoaderManager, which isn't
     // available in SherlockMapActivity
     private Loader<ObaStopsForRouteResponse> mRouteLoader;
-    private Loader<ObaRoutesForLocationResponse> mRoutesLoader;
+    private Loader<ObaRouteIdsForAgencyResponse> mRoutesLoader;
 
     private RoutesLoaderListener mRoutesLoaderListener;
     private RouteLoaderListener mRouteLoaderListener;
@@ -99,7 +101,7 @@ public class RoutesMapController implements MapModeController {
                 android.R.integer.config_shortAnimTime);
         mRoutePopup = new RoutePopup();
         mRoutesLoaderListener = new RoutesLoaderListener();
-        //mVehicleLoaderListener = new VehicleLoaderListener();
+        mVehicleLoaderListener = new VehicleLoaderListener();
     }
 
     @Override
@@ -132,16 +134,9 @@ public class RoutesMapController implements MapModeController {
             mFragment.showProgress(true);
             //mFragment.getLoaderManager().restartLoader(ROUTES_LOADER, null, this);
 
-            //mRouteLoader = mRouteLoaderListener.onCreateLoader(ROUTES_LOADER, null);
-            //mRouteLoader.registerListener(0, mRouteLoaderListener);
-            //mRouteLoader.startLoading();
             mRoutesLoader = mRoutesLoaderListener.onCreateLoader(ROUTE_LOADER, null);
             mRoutesLoader.registerListener(0, mRoutesLoaderListener);
             mRoutesLoader.startLoading();
-
-            //mVehiclesLoader = mVehicleLoaderListener.onCreateLoader(VEHICLES_LOADER, null);
-            //mVehiclesLoader.registerListener(0, mVehicleLoaderListener);
-            //mVehiclesLoader.startLoading();
         } else {
             // We are returning to the route view with the route already set, so show the header
             mRoutePopup.show();
@@ -392,7 +387,7 @@ public class RoutesMapController implements MapModeController {
     // Loaders
     //
 
-    private static class RoutesLoader extends AsyncTaskLoader<ObaStopsForRouteResponse> {
+    public static class RoutesLoader extends AsyncTaskLoader<ObaStopsForRouteResponse> {
 
         private final String mRouteId;
 
@@ -429,13 +424,14 @@ public class RoutesMapController implements MapModeController {
         }
     }
 
-    class RouteLoaderListener implements LoaderManager.LoaderCallbacks<ObaStopsForRouteResponse>,
+    public class RouteLoaderListener implements LoaderManager.LoaderCallbacks<ObaStopsForRouteResponse>,
             Loader.OnLoadCompleteListener<ObaStopsForRouteResponse> {
 
         @Override
         public Loader<ObaStopsForRouteResponse> onCreateLoader(int id,
                 Bundle args) {
-            return new RoutesLoader(mFragment.getActivity(), mRouteId);
+            id = id;
+            return new RoutesLoader(mFragment.getActivity(), args.getString("mRouteId"));
         }
 
         @Override
@@ -522,7 +518,7 @@ public class RoutesMapController implements MapModeController {
         }
     }
 
-    class VehicleLoaderListener implements LoaderManager.LoaderCallbacks<ObaTripsForRouteResponse>,
+    public class VehicleLoaderListener implements LoaderManager.LoaderCallbacks<ObaTripsForRouteResponse>,
             Loader.OnLoadCompleteListener<ObaTripsForRouteResponse> {
 
         HashSet<String> routes = new HashSet<>(1);
@@ -530,7 +526,7 @@ public class RoutesMapController implements MapModeController {
         @Override
         public Loader<ObaTripsForRouteResponse> onCreateLoader(int id,
                 Bundle args) {
-            return new VehiclesLoader(mFragment.getActivity(), mRouteId);
+            return new VehiclesLoader(mFragment.getActivity(), args.getString("mRouteId"));
         }
 
         @Override
@@ -575,19 +571,17 @@ public class RoutesMapController implements MapModeController {
         }
     }
 
-    private static class RouteLoader extends AsyncTaskLoader<ObaRoutesForLocationResponse> {
+    private static class RouteLoader extends AsyncTaskLoader<ObaRouteIdsForAgencyResponse> {
 
-        private final double lat;
-        private final double lon;
+        //private final double lat;
+        //private final double lon;
 
-        public RouteLoader(Context context, double lat, double lon) {
+        public RouteLoader(Context context) {
             super(context);
-            this.lat = lat;
-            this.lon = lon;
         }
 
         @Override
-        public ObaRoutesForLocationResponse loadInBackground() {
+        public ObaRouteIdsForAgencyResponse loadInBackground() {
             if (Application.get().getCurrentRegion() == null &&
                     TextUtils.isEmpty(Application.get().getCustomApiUrl())) {
                 //We don't have region info or manually entered API to know what server to contact
@@ -595,18 +589,16 @@ public class RoutesMapController implements MapModeController {
                         "without OBA REST API endpoint, aborting...");
                 return null;
             }
-            Location location = LocationUtils.makeLocation(33.7490, 84.3880);
+            //Location location = LocationUtils.makeLocation(33.7490, 84.3880);
             //Make OBA REST API call to the server and return result
-            return new ObaRoutesForLocationRequest.Builder(getContext(), location)
+            return new ObaRouteIdsForAgencyRequest.Builder(getContext(), "MARTA")
                     .build()
                     .call();
-
-             // Use this new ObaRouteIdsForAgencyRequest.Builder();
 
         }
 
         @Override
-        public void deliverResult(ObaRoutesForLocationResponse data) {
+        public void deliverResult(ObaRouteIdsForAgencyResponse data) {
             //mResponse = data;
             super.deliverResult(data);
         }
@@ -617,18 +609,18 @@ public class RoutesMapController implements MapModeController {
         }
     }
 
-    class RoutesLoaderListener implements LoaderManager.LoaderCallbacks<ObaRoutesForLocationResponse>,
-            Loader.OnLoadCompleteListener<ObaRoutesForLocationResponse> {
+    public class RoutesLoaderListener implements LoaderManager.LoaderCallbacks<ObaRouteIdsForAgencyResponse>,
+            Loader.OnLoadCompleteListener<ObaRouteIdsForAgencyResponse> {
 
         @Override
-        public Loader<ObaRoutesForLocationResponse> onCreateLoader(int id,
+        public Loader<ObaRouteIdsForAgencyResponse> onCreateLoader(int id,
                                                                    Bundle args) {
-            return new RouteLoader(mFragment.getActivity(), mLat, mLon);
+            return new RouteLoader(mFragment.getActivity());
         }
 
         @Override
-        public void onLoadFinished(Loader<ObaRoutesForLocationResponse> loader,
-                                   ObaRoutesForLocationResponse response) {
+        public void onLoadFinished(Loader<ObaRouteIdsForAgencyResponse> loader,
+                                   ObaRouteIdsForAgencyResponse response) {
 
             ObaMapView obaMapView = mFragment.getMapView();
 
@@ -636,24 +628,24 @@ public class RoutesMapController implements MapModeController {
                 BaseMapFragment.showMapError(response);
                 return;
             }
+            String[] routes = response.getRouteIds();
+            for(String route :  Arrays.copyOfRange(routes, 1, 5)) {
+                //mRoutePopup.show(route, "4");
+                mRouteId = route;
+                Bundle b = new Bundle();
+                b.putString("mRouteId", route);
 
-            List<ObaRoute> routes = response.getRoutes();
-            // TODO: Change to get routes by agency
-            for(ObaRoute route : routes) {
-                mRoutePopup.show(route, response.getAgency(route.getAgencyId()).getName());
-
-                if (route.getColor() != null) {
-                    mLineOverlayColor = route.getColor();
-                }
-                mRouteId = route.getId();
-                mRouteLoader = mRouteLoaderListener.onCreateLoader(ROUTES_LOADER, null);
+                mRouteLoaderListener = new RouteLoaderListener();
+                mRouteLoader = mRouteLoaderListener.onCreateLoader(ROUTES_LOADER, b);
                 mRouteLoader.registerListener(0, mRouteLoaderListener);
                 mRouteLoader.startLoading();
+
+                mVehicleLoaderListener = new VehicleLoaderListener();
+                mVehiclesLoader = mVehicleLoaderListener.onCreateLoader(VEHICLES_LOADER, b);
+                mVehiclesLoader.registerListener(0, mVehicleLoaderListener);
+                mVehiclesLoader.startLoading();
+
             }
-            // Set the stops for this route
-            //List<ObaStop> stops = response.getStops();
-            //mFragment.showStops(stops, response);
-            //mFragment.showProgress(false);
 
             if (mZoomToRoute) {
                 obaMapView.zoomToRoute();
@@ -665,14 +657,14 @@ public class RoutesMapController implements MapModeController {
         }
 
         @Override
-        public void onLoaderReset(Loader<ObaRoutesForLocationResponse> loader) {
+        public void onLoaderReset(Loader<ObaRouteIdsForAgencyResponse> loader) {
             mFragment.getMapView().removeRouteOverlay();
             mFragment.getMapView().removeVehicleOverlay();
         }
 
         @Override
-        public void onLoadComplete(Loader<ObaRoutesForLocationResponse> loader,
-                                   ObaRoutesForLocationResponse response) {
+        public void onLoadComplete(Loader<ObaRouteIdsForAgencyResponse> loader,
+                                   ObaRouteIdsForAgencyResponse response) {
             onLoadFinished(loader, response);
         }
     }
